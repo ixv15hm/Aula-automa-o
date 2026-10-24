@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casa Inteligente - Lidiane</title>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#15131f;--bg2:#1c1a2a;--card:#221f33;--line:#34304b;--tx:#f4effb;--mut:#a29bbd;--ac:#ffb454;--acd:#2a1a05;--ok:#5ee0b0;--bad:#ff6b81;--warn:#ffd166;--r:22px;--serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,-apple-system,Segoe UI,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);background:radial-gradient(900px 500px at 8% -8%,rgba(255,180,84,.14),transparent 60%),radial-gradient(800px 600px at 100% 0,rgba(120,100,255,.14),transparent 55%),var(--bg);background-attachment:fixed;color:var(--tx);min-height:100vh;line-height:1.45}
+svg{width:1em;height:1em;display:block}
+header{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 28px;background:rgba(21,19,31,.78);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+h1{font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:0;flex:1;min-width:200px;display:flex;align-items:center;gap:10px}
+h1 svg{font-size:1.5rem;color:var(--ac)}
+.pill{display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);font-size:.8rem;font-weight:600;color:var(--mut)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad)}
+.pill.online{color:var(--ok)}.pill.online .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.pill.connecting .dot{background:var(--warn);animation:pulse 1s infinite alternate}
+@keyframes pulse{to{opacity:.3}}
+button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--bg2);color:var(--tx);padding:9px 16px;border-radius:12px;transition:background .15s,border-color .15s,color .15s}
+button:hover{border-color:var(--ac)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button.pri{background:var(--ac);border-color:var(--ac);color:var(--acd)}
+button.pri:hover{background:#ffc67a}
+button.danger{color:var(--bad);border-color:#5d3040}
+main{max-width:1180px;margin:0 auto;padding:34px 28px 70px}
+.hero{margin-bottom:26px}
+.hero h2{font-family:var(--serif);font-weight:500;font-size:clamp(2rem,5vw,3.2rem);line-height:1.1;margin:0 0 8px;letter-spacing:-.01em}
+.hero p{margin:0;color:var(--mut);font-size:1.02rem}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.chip{border-radius:99px;padding:7px 16px;font-size:.88rem;color:var(--mut);background:transparent}
+.chip.sel{background:var(--tx);border-color:var(--tx);color:var(--bg)}
+.rm{font-family:var(--serif);font-weight:500;font-size:1.5rem;margin:34px 0 14px;display:flex;align-items:baseline;gap:12px}
+.rm small{font-family:var(--sans);font-size:.8rem;color:var(--mut);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;transition:background .3s,border-color .3s,box-shadow .3s}
+.card.active{background:linear-gradient(160deg,rgba(255,180,84,.2),var(--card) 62%);border-color:rgba(255,180,84,.55);box-shadow:0 18px 50px -24px rgba(255,180,84,.55)}
+.hd{display:flex;gap:12px;align-items:center}
+.ic{font-size:1.5rem;width:50px;height:50px;border-radius:16px;display:grid;place-items:center;background:var(--bg2);color:var(--mut);flex:none;transition:.3s}
+.card.active .ic{background:var(--ac);color:var(--acd);box-shadow:0 0 26px rgba(255,180,84,.55)}
+.hd div{flex:1;min-width:0}
+h3{margin:0;font-size:1rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+small{color:var(--mut)}
+.ghost{background:none;border:none;padding:6px 8px;color:var(--mut);font-size:1.2rem;line-height:1;border-radius:10px}
+.ghost:hover{color:var(--tx);background:var(--bg2)}
+.badge{align-self:flex-start;font-size:.78rem;font-weight:600;padding:4px 11px;border-radius:99px;background:var(--bg2);color:var(--mut)}
+.badge.ok{background:rgba(255,180,84,.18);color:var(--ac)}
+.row{display:flex;gap:4px;padding:4px;background:var(--bg);border-radius:15px}
+.row button{flex:1;border:0;background:transparent;color:var(--mut);padding:9px 6px;border-radius:11px}
+.row button:hover{background:rgba(255,255,255,.07);color:var(--tx)}
+.row button.on{background:var(--ac);color:var(--acd)}
+.row button.off{background:#3a3556;color:var(--tx)}
+.bar{height:7px;border-radius:9px;background:var(--bg);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ac);border-radius:9px;transition:width .5s}
+.temp{display:flex;align-items:center;justify-content:center;gap:18px}
+.temp b{font-family:var(--serif);font-weight:500;font-size:2.3rem;min-width:96px;text-align:center}
+.temp button{width:42px;height:42px;padding:0;border-radius:50%;font-size:1.3rem}
+.empty{text-align:center;color:var(--mut);padding:70px 0}
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:26px;padding:0;width:min(660px,94vw)}
+dialog::backdrop{background:rgba(8,6,16,.7);backdrop-filter:blur(4px)}
+form{padding:24px;display:flex;flex-direction:column;gap:13px;max-height:88vh;overflow:auto}
+form h3{font-family:var(--serif);font-weight:500;font-size:1.4rem;overflow:visible}
+label{display:flex;flex-direction:column;gap:6px;font-size:.8rem;font-weight:600;color:var(--mut)}
+input,select{font:inherit;font-weight:500;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}
+input:disabled{opacity:.6}
+.f2{display:grid;grid-template-columns:2fr 1fr;gap:10px;align-items:end}
+.f3{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+fieldset{border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;gap:11px;padding:14px}
+legend{color:var(--ac);font-size:.85rem;font-weight:700;padding:0 8px}
+.acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);background:var(--tx);color:var(--bg);font-weight:600;padding:11px 20px;border-radius:14px;opacity:0;pointer-events:none;transition:.25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.hint{font-size:.78rem;color:var(--mut);margin:0}
+.chk{flex-direction:row;align-items:center;gap:8px;font-size:.88rem}.chk input{width:auto}
+@media(max-width:600px){header{padding:10px 16px}main{padding:24px 16px 60px}.f2,.f3{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Casa Inteligente - Lidiane</h1>
+  <div class="pill" id="pill"><i class="dot"></i><span id="pt">Desconectado</span></div>
+  <button id="bSet">Conexão MQTT</button>
+  <button class="pri" id="bAdd">+ Equipamento</button>
+</header>
+<main>
+  <section class="hero"><h2 id="hiT"></h2><p id="hiS"></p></section>
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</main>
+
+
+<dialog id="dSet"><form method="dialog" id="fSet">
+  <h3>Conexão MQTT</h3>
+  <div class="f2"><label>Endereço / IP do broker<input name="host" required placeholder="192.168.1.10 ou broker.exemplo.com"></label>
+  <label>Porta<input name="port" type="number" min="1" max="65535" required></label></div>
+  <div class="f3">
+    <label>Protocolo<select name="proto"><option value="wss">WebSocket Secure (WSS)</option><option value="ws">WebSocket (WS)</option></select></label>
+    <label>Path<input name="path" placeholder="/mqtt"></label>
+  </div>
+  <div class="f3">
+    <label>Nome do usuário<input name="user" autocomplete="off"></label>
+    <label>Senha<input name="pass" type="password" autocomplete="new-password"></label>
+  </div>
+  <label class="chk"><input type="checkbox" id="showPass"> Mostrar senha</label>
+  <div class="f3">
+    <label>Client ID (vazio = automático)<input name="clientId" autocomplete="off"></label>
+    <label>Keepalive (segundos)<input name="keepalive" type="number" min="0"></label>
+  </div>
+  <div class="f3">
+    <label>QoS padrão<select name="qos"><option value="0">0 · no máximo uma vez</option><option value="1">1 · ao menos uma vez</option><option value="2">2 · exatamente uma vez</option></select></label>
+    <label>Reconexão automática (segundos)<input name="reconnect" type="number" min="1"></label>
+  </div>
+  <label class="chk"><input type="checkbox" name="clean"> Clean session</label>
+  <label class="chk"><input type="checkbox" name="retain"> Enviar comandos com retain</label>
+  <p class="hint">Dados salvos apenas neste navegador (localStorage). Use WS somente em rede local: se a página for aberta por HTTPS, o navegador exige WSS.</p>
+  <div class="acts"><button type="button" id="sReset">Restaurar padrões</button><button type="button" data-close>Cancelar</button><button class="pri" value="ok">Salvar e conectar</button></div>
+</form></dialog>
+
+<dialog id="dDev"><form method="dialog" id="fDev"></form></dialog>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}};
+const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+
+const TYPES={
+ garage:{n:'Portão de garagem',i:'🚗',c:[['open','Abrir','OPEN'],['close','Fechar','CLOSE'],['stop','Parar','STOP']],s:[['state','Estado']]},
+ light:{n:'Iluminação',i:'💡',c:[['on','Ligar','ON'],['off','Desligar','OFF']],s:[['state','Estado']]},
+ curtain:{n:'Cortina',i:'🪟',c:[['open','Abrir','OPEN'],['close','Fechar','CLOSE'],['stop','Parar','STOP']],s:[['state','Estado'],['pos','Posição (0-100)']]},
+ fan:{n:'Ventilador',i:'🌀',c:[['on','Ligar','ON'],['off','Desligar','OFF']],s:[['state','Estado']]},
+ ac:{n:'Ar-condicionado',i:'❄️',c:[['on','Ligar','ON'],['off','Desligar','OFF'],['temp','Temperatura','{valor}']],s:[['state','Estado'],['temp','Temperatura atual/alvo']]}
+};
+const ROOMS=['Sala','Cozinha','Quarto 1','Quarto 2','Banheiro','Jardim','Área externa','Garagem'];
+const OPT={on:'on',off:'off',open:'open',close:'closed',stop:'stopped'};
+
+function mkDev(name,room,type){
+  const b=`casa/${slug(room)||'geral'}/${slug(name)||'dispositivo'}`,T=TYPES[type];
+  return{id:'d'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name,room,type,
+    cmds:Object.fromEntries(T.c.map(([k,,p])=>[k,{t:`${b}/cmd/${k}`,p}])),
+    states:Object.fromEntries(T.s.map(([k])=>[k,`${b}/state/${k}`]))};
+}
+const seed=()=>[
+  mkDev('Portão da garagem','Garagem','garage'),
+  mkDev('Lâmpada da sala','Sala','light'),mkDev('Cortina da sala','Sala','curtain'),
+  mkDev('Ar-condicionado','Sala','ac'),mkDev('Ventilador da sala','Sala','fan'),
+  mkDev('Lâmpada da cozinha','Cozinha','light'),
+  mkDev('Lâmpada','Quarto 1','light'),mkDev('Ventilador','Quarto 1','fan'),
+  mkDev('Lâmpada','Quarto 2','light'),mkDev('Lâmpada','Banheiro','light'),
+  mkDev('Luz do jardim','Jardim','light'),mkDev('Luz da área externa','Área externa','light')
+];
+
+const DEF={host:'w8767ca9.ala.us-east-1.emqxsl.com',proto:'wss',port:8084,path:'/mhtt',user:'RICARDO',pass:'senai',clientId:'',keepalive:60,qos:0,reconnect:4,clean:true,retain:false};
+let cfg=Object.assign({},DEF,jget('ha_cfg',{}));
+if(cfg.host==='8767ca9.ala.us-east-1.emqxsl.com'){cfg.host=DEF.host;jset('ha_cfg',cfg)}
+let devs=jget('ha_devs',null)||seed();
+let st={},room='all',client=null,subs=new Set(),draft=null,isNew=false;
+const save=()=>jset('ha_devs',devs);
+
+/* ---------- MQTT ---------- */
+function setStatus(c,t){$('#pill').className='pill '+c;$('#pt').textContent=t}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),2200)}
+function connect(){
+  if(client){try{client.end(true)}catch{}client=null;subs.clear()}
+  if(typeof mqtt==='undefined'){setStatus('','Biblioteca MQTT não carregou');return}
+  const host=String(cfg.host).trim().replace(/^[a-z]+:\/\//i,'').replace(/\/.*$/,'');
+  const path=cfg.path?(cfg.path.startsWith('/')?cfg.path:'/'+cfg.path):'';
+  const url=`${cfg.proto==='ws'?'ws':'wss'}://${host}:${cfg.port}${path}`;
+  const o={clientId:cfg.clientId||'casa_'+Math.random().toString(16).slice(2,10),reconnectPeriod:Math.max(1,+cfg.reconnect||4)*1000,connectTimeout:10000,keepalive:+cfg.keepalive||0,clean:cfg.clean!==false};
+  if(cfg.user)o.username=cfg.user;
+  if(cfg.pass)o.password=cfg.pass;
+  setStatus('connecting','Conectando…');
+  client=mqtt.connect(url,o);
+  client.on('connect',()=>{setStatus('online','Conectado');subs.clear();syncSubs()});
+  client.on('reconnect',()=>setStatus('connecting','Reconectando…'));
+  client.on('offline',()=>setStatus('','Offline'));
+  client.on('close',()=>setStatus('','Desconectado'));
+  client.on('error',e=>{setStatus('','Erro: '+(e.message||e));});
+  client.on('message',(t,m)=>onMsg(t,m.toString()));
+}
+function syncSubs(){
+  if(!client||!client.connected)return;
+  const want=new Set(devs.flatMap(d=>Object.values(d.states||{})).filter(Boolean));
+  [...subs].filter(t=>!want.has(t)).forEach(t=>{client.unsubscribe(t);subs.delete(t)});
+  [...want].filter(t=>!subs.has(t)).forEach(t=>{client.subscribe(t,{qos:+cfg.qos||0});subs.add(t)});
+}
+function onMsg(topic,raw){
+  const v=raw.trim();let ch=false;
+  devs.forEach(d=>Object.entries(d.states||{}).forEach(([k,t])=>{
+    if(t!==topic)return;
+    const s=st[d.id]=st[d.id]||{};
+    if(k==='state'){
+      const u=v.toUpperCase();
+      s.state=['light','fan','ac'].includes(d.type)?(['ON','1','TRUE','LIGADO'].includes(u)?'on':['OFF','0','FALSE','DESLIGADO'].includes(u)?'off':null):v.toLowerCase();
+    }else if(k==='pos'){const n=parseFloat(v);s.pos=isNaN(n)?null:Math.max(0,Math.min(100,n))}
+    else if(k==='temp'){const n=parseFloat(v);if(!isNaN(n))s.temp=n}
+    ch=true;
+  }));
+  if(ch)render();
+}
+function send(id,key,val){
+  const d=devs.find(x=>x.id===id),c=d&&d.cmds[key];
+  if(!c||!c.t)return toast('Tópico não configurado');
+  if(!client||!client.connected)return toast('Sem conexão com o broker');
+  const p=String(c.p).replace('{valor}',val??'');
+  client.publish(c.t,p,{qos:+cfg.qos||0,retain:!!cfg.retain},e=>toast(e?'Falha ao enviar':`${d.name}: ${TYPES[d.type].c.find(x=>x[0]===key)[1]}${val!=null?' '+val+'°':''}`));
+  if(!d.states.state&&OPT[key]){(st[id]=st[id]||{}).state=OPT[key];render()}
+}
+
+/* ---------- Render ---------- */
+const LBL={open:'Aberto',closed:'Fechado',close:'Fechado',opening:'Abrindo',closing:'Fechando',stopped:'Parado',on:'Ligado',off:'Desligado'};
+const ICO={light:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+fan:'<circle cx="12" cy="12" r="1.5"/><path d="M12 10.5C12 6 14 3.5 16.5 4.5c2 .8 1.5 4-1.5 6M13.5 12c4.5 0 7 2 6 4.5-.8 2-4 1.5-6-1.5M12 13.5c0 4.5-2 7-4.5 6-2-.8-1.5-4 1.5-6M10.5 12C6 12 3.5 10 4.5 7.5c.8-2 4-1.5 6 1.5"/>',
+garage:'<path d="M3 10l9-6 9 6v10H3z"/><path d="M7 20v-6h10v6M7 17h10"/>',
+curtain:'<path d="M3 4h18M6 4v16M18 4v16M6 8c3 0 5 4 5 12M18 8c-3 0-5 4-5 12"/>',
+ac:'<rect x="3" y="5" width="18" height="8" rx="2"/><path d="M7 17c0 1.5-1 2-1 3M12 17c0 1.5-1 2-1 3M17 17c0 1.5-1 2-1 3"/>'};
+const ic=t=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICO[t]}</svg>`;
+function card(d){
+  const T=TYPES[d.type],s=st[d.id]||{},two=['light','fan','ac'].includes(d.type);
+  const label=s.state?(LBL[s.state]||s.state):'Estado desconhecido';
+  const act=s.state==='on'||s.state==='open';
+  let h=`<div class="card ${act?'active':''}" data-id="${d.id}"><div class="hd"><span class="ic">${ic(d.type)}</span><div><h3>${esc(d.name)}</h3><small>${T.n}</small></div><button class="ghost" data-edit title="Editar equipamento" aria-label="Editar equipamento">⋯</button></div>
+  <span class="badge ${act?'ok':''}">${esc(label)}</span>`;
+  if(d.type==='curtain'){const p=s.pos;h+=`<div class="bar"><i style="width:${p??0}%"></i></div><small>Posição: ${p==null?'indisponível':Math.round(p)+'% aberta'}</small>`}
+  if(d.type==='ac'){const t=s.temp??s.target??24;h+=`<div class="temp"><button data-temp="-1" aria-label="Diminuir">−</button><b>${t}°C</b><button data-temp="1" aria-label="Aumentar">+</button></div>`}
+  h+=`<div class="row">`+T.c.filter(c=>c[0]!=='temp').map(([k,l])=>{
+    const cls=two&&((k==='on'&&s.state==='on')?'on':(k==='off'&&s.state==='off')?'off':'');
+    return `<button class="${cls}" data-cmd="${k}">${l}</button>`}).join('')+`</div></div>`;
+  return h;
+}
+function hero(){
+  const h=new Date().getHours(),g=h<5?'Boa madrugada':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+  const n=(t,v)=>devs.filter(d=>d.type===t&&st[d.id]?.state===v).length,p=[];
+  const l=n('light','on'),f=n('fan','on'),a=n('ac','on'),c=n('curtain','open');
+  if(l)p.push(`${l} ${l>1?'luzes acesas':'luz acesa'}`);
+  if(f)p.push(`${f} ${f>1?'ventiladores ligados':'ventilador ligado'}`);
+  if(a)p.push(a>1?`${a} ar-condicionados ligados`:'ar-condicionado ligado');
+  if(c)p.push(`${c} ${c>1?'cortinas abertas':'cortina aberta'}`);
+  const gd=devs.find(d=>d.type==='garage'&&st[d.id]?.state);
+  if(gd)p.push('portão '+(LBL[st[gd.id].state]||st[gd.id].state).toLowerCase());
+  const known=devs.some(d=>st[d.id]?.state);
+  $('#hiT').textContent=g+', Lidiane';
+  $('#hiS').textContent=p.length?p.join(' · '):known?'Nenhum equipamento ligado agora.':'Aguardando o estado dos equipamentos.';
+}
+function render(){
+  const rooms=[...new Set(devs.map(d=>d.room))];
+  if(room!=='all'&&!rooms.includes(room))room='all';
+  hero();
+  $('#chips').innerHTML=['all',...rooms].map(r=>`<button class="chip ${r===room?'sel':''}" data-room="${esc(r)}">${r==='all'?'Todos':esc(r)}</button>`).join('');
+  const vis=rooms.filter(r=>room==='all'||r===room);
+  $('#list').innerHTML=vis.length?vis.map(r=>{const ds=devs.filter(d=>d.room===r);return `<h2 class="rm">${esc(r)}<small>${ds.length} ${ds.length>1?'equipamentos':'equipamento'}</small></h2><div class="grid">${ds.map(card).join('')}</div>`}).join(''):'<div class="empty">Nenhum equipamento ainda. Use “+ Equipamento” para cadastrar o primeiro.</div>';
+}
+
+/* ---------- Editor de equipamento ---------- */
+function devForm(){
+  const d=draft,T=TYPES[d.type];
+  $('#fDev').innerHTML=`<h3>${isNew?'Novo equipamento':'Editar equipamento'}</h3>
+  <div class="f3"><label>Nome<input name="name" value="${esc(d.name)}" required></label>
+  <label>Ambiente<input name="room" list="rooms" value="${esc(d.room)}" required><datalist id="rooms">${[...new Set([...ROOMS,...devs.map(x=>x.room)])].map(r=>`<option value="${esc(r)}">`).join('')}</datalist></label></div>
+  <label>Tipo<select name="type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${k===d.type?'selected':''}>${v.n}</option>`).join('')}</select></label>
+  <fieldset><legend>Tópicos de comando (um por ação)</legend>${T.c.map(([k,l])=>`
+    <div class="f2"><label>${l} · tópico<input data-c="${k}" data-f="t" value="${esc(d.cmds[k]?.t)}"></label><label>Payload<input data-c="${k}" data-f="p" value="${esc(d.cmds[k]?.p)}"></label></div>`).join('')}
+    ${d.type==='ac'?'<p class="hint">Use {valor} no payload da temperatura (ex.: {valor} ou {"temp":{valor}}).</p>':''}</fieldset>
+  <fieldset><legend>Tópicos de estado (recebimento)</legend>${T.s.map(([k,l])=>`
+    <label>${l}<input data-s="${k}" value="${esc(d.states[k])}"></label>`).join('')}
+    <p class="hint">Estado: ON/OFF (ou 1/0) para luz, ventilador e ar; open/closed/opening/closing/stopped para portão e cortina. Deixe vazio para estado local otimista.</p></fieldset>
+  <div class="acts">${isNew?'':'<button type="button" class="danger" id="xDel">Remover</button>'}<button type="button" id="xGen">Gerar tópicos</button><button type="button" data-close>Cancelar</button><button class="pri" value="ok">Salvar</button></div>`;
+}
+function readForm(){
+  const f=$('#fDev'),d=draft;
+  d.name=f.name.value.trim();d.room=f.room.value.trim();
+  f.querySelectorAll('[data-c]').forEach(i=>{d.cmds[i.dataset.c]=d.cmds[i.dataset.c]||{};d.cmds[i.dataset.c][i.dataset.f]=i.value.trim()});
+  f.querySelectorAll('[data-s]').forEach(i=>d.states[i.dataset.s]=i.value.trim());
+}
+function openDev(id){
+  isNew=!id;
+  draft=id?JSON.parse(JSON.stringify(devs.find(d=>d.id===id))):mkDev('Novo equipamento','Sala','light');
+  devForm();$('#dDev').showModal();
+}
+
+/* ---------- Eventos ---------- */
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.matches('[data-close]'))t.closest('dialog').close();
+  if(t.dataset.room!=null){room=t.dataset.room;render()}
+  const card=t.closest('.card');
+  if(card&&t.dataset.cmd)send(card.dataset.id,t.dataset.cmd);
+  if(card&&t.dataset.edit!=null)openDev(card.dataset.id);
+  if(card&&t.dataset.temp){
+    const id=card.dataset.id,s=st[id]=st[id]||{};
+    const v=Math.max(16,Math.min(30,(s.temp??s.target??24)+ +t.dataset.temp));
+    s.target=v;s.temp=undefined;send(id,'temp',v);render();
+  }
+  if(t.id==='xGen'){readForm();const n=mkDev(draft.name,draft.room,draft.type);draft.cmds=n.cmds;draft.states=n.states;devForm()}
+  if(t.id==='xDel'&&confirm('Remover este equipamento?')){devs=devs.filter(d=>d.id!==draft.id);save();syncSubs();render();$('#dDev').close()}
+});
+$('#fDev').addEventListener('change',e=>{
+  if(e.target.name==='type'){readForm();const n=mkDev(draft.name,draft.room,e.target.value);draft.type=n.type;draft.cmds=n.cmds;draft.states=n.states;devForm()}
+});
+$('#fDev').addEventListener('submit',e=>{
+  readForm();
+  if(!draft.name||!draft.room)return;
+  if(isNew)devs.push(draft);else devs=devs.map(d=>d.id===draft.id?draft:d);
+  save();syncSubs();render();
+});
+$('#bAdd').onclick=()=>openDev(null);
+const sf=()=>$('#fSet');
+function fillSet(c){const f=sf();['host','proto','port','path','user','pass','clientId','keepalive','qos','reconnect'].forEach(k=>f[k].value=c[k]??'');f.clean.checked=!!c.clean;f.retain.checked=!!c.retain;$('#showPass').checked=false;f.pass.type='password'}
+$('#bSet').onclick=()=>{fillSet(cfg);$('#dSet').showModal()};
+$('#showPass').onchange=e=>sf().pass.type=e.target.checked?'text':'password';
+$('#sReset').onclick=()=>fillSet(DEF);
+$('#fSet').addEventListener('submit',()=>{
+  const f=sf();
+  cfg={host:f.host.value.trim(),proto:f.proto.value,port:+f.port.value,path:f.path.value.trim(),user:f.user.value,pass:f.pass.value,clientId:f.clientId.value.trim(),keepalive:+f.keepalive.value||0,qos:+f.qos.value,reconnect:+f.reconnect.value||4,clean:f.clean.checked,retain:f.retain.checked};
+  jset('ha_cfg',cfg);connect();
+});
+
+/* Reconexão automática: o cliente tenta a cada 4 s; também força ao voltar a rede ou a aba */
+const retry=()=>{if(client&&!client.connected&&!client.reconnecting)client.reconnect()};
+window.addEventListener('online',retry);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)retry()});
+setInterval(()=>{if(client&&!client.connected&&!client.reconnecting)setStatus('connecting','Reconectando…')},5000);
+
+render();connect();
+</script>
+</body>
+</html>
